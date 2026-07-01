@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password_hash String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamentos
+  ownedDocuments        Document[]             @relation("OwnerDocuments")
+  collaboratorDocuments DocumentCollaborator[]
+
+  @@map("users")
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @default("") // Inicialmente texto livre
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  owner         User                   @relation("OwnerDocuments", fields: [ownerId], references: [id], onDelete: Cascade)
+  collaborators DocumentCollaborator[]
+
+  @@map("documents")
+}
+
+model DocumentCollaborator {
+  id         String   @id @default(uuid())
+  documentId String
+  userId     String
+  role       String   @default("VIEWER") // Regras gerenciadas via Zod/DTO (VIEWER, EDITOR)
+  addedAt    DateTime @default(now())
+
+  // Relacionamentos
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Um usuário não pode estar atrelado duas vezes como colaborador no mesmo doc
+  @@unique([documentId, userId])
+  @@map("document_collaborators")
+}
